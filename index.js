@@ -245,7 +245,35 @@ app.get("/dashboard", protect, asyncHandler(async (req, res) => {
     });
 }));
 
-app.get("/profile", protect, asyncHandler(async (req, res) => {
+app.get("/my-links", protect, async (req, res) => {
+    const userDoc = isGuestContributor(req.user)
+        ? null
+        : await User.findById(req.user.id).select('name email').lean();
+
+    const host = req.get('host');
+    const domain = host || 'creatoros.link';
+
+    res.render("my-links", {
+        user: buildAccountViewModel(userDoc, req.user),
+        isGuestContributor: isGuestContributor(req.user),
+        domain,
+    });
+});
+
+app.get("/settings", protect, async (req, res) => {
+    const userDoc = isGuestContributor(req.user)
+        ? null
+        : await User.findById(req.user.id)
+            .select('name email alias bio twoFactorEnabled preferences passwordChangedAt updatedAt subscription')
+            .lean();
+
+    res.render("settings", {
+        user: buildAccountViewModel(userDoc, req.user),
+        isGuestContributor: isGuestContributor(req.user),
+    });
+});
+
+app.get("/profile", protect, async (req, res) => {
     const userDoc = isGuestContributor(req.user)
         ? null
         : await User.findById(req.user.id).select('name email').lean();
@@ -324,10 +352,12 @@ app.post('/services/url-shortener/shorten', protect, preventContributorWrites, u
 
     const shortId = shortid();
 
-    await Url.create({
-        shortId,
-        redirectUrl,
-    });
+        await Url.create({
+            shortId,
+            redirectUrl,
+            userId: req.user?.id || null,
+            linkedAt: new Date(),
+        });
 
     return res.render('home', buildShortenerViewModel(req, shortId));
 }));

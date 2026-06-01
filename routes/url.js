@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
     handleGenerateShortUrl,
+    handleListUserLinks,
     handleGetQRCode,
     handleDownloadQRCode,
     handleUpdateQRColors,
@@ -11,6 +12,8 @@ const protect = require('../middleware/auth');
 const { preventContributorWrites } = require('../middleware/auth');
 const { urlShortenerApiLimiter } = require('../middleware/rateLimiters');
 
+router.get('/', protect, handleListUserLinks);
+router.get('/analytics/:shortId', handleGetAnalytics);
 // ── Short URL Endpoints ─────────────────────────────────────────────────────
 router.post('/shorten', protect, preventContributorWrites, urlShortenerApiLimiter, handleGenerateShortUrl);
 router.post('/', protect, preventContributorWrites, urlShortenerApiLimiter, handleGenerateShortUrl);
