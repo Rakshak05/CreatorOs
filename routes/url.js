@@ -11,6 +11,7 @@ const {
 const protect = require('../middleware/auth');
 const { preventContributorWrites } = require('../middleware/auth');
 const { urlShortenerApiLimiter } = require('../middleware/rateLimiters');
+const { validate, urlShortenSchema, urlQRColorsSchema } = require('../middleware/validators');
 
 
 /**
@@ -49,42 +50,8 @@ router.get('/', protect, handleListUserLinks);
  */
 router.get('/analytics/:shortId', handleGetAnalytics);
 // ── Short URL Endpoints ─────────────────────────────────────────────────────
-
-/**
- * @swagger
- * /shorten:
- *   post:
- *     summary: POST request for /shorten
- *     description: Automatically generated swagger documentation for /shorten
- *     responses:
- *       200:
- *         description: Successful response
- *       400:
- *         description: Bad request
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Internal server error
- */
-router.post('/shorten', protect, preventContributorWrites, urlShortenerApiLimiter, handleGenerateShortUrl);
-
-/**
- * @swagger
- * /:
- *   post:
- *     summary: POST request for /
- *     description: Automatically generated swagger documentation for /
- *     responses:
- *       200:
- *         description: Successful response
- *       400:
- *         description: Bad request
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Internal server error
- */
-router.post('/', protect, preventContributorWrites, urlShortenerApiLimiter, handleGenerateShortUrl);
+router.post('/shorten', protect, preventContributorWrites, urlShortenerApiLimiter, validate(urlShortenSchema, 'body'), handleGenerateShortUrl);
+router.post('/', protect, preventContributorWrites, urlShortenerApiLimiter, validate(urlShortenSchema, 'body'), handleGenerateShortUrl);
 
 // ── QR Code Endpoints ───────────────────────────────────────────────────────
 
@@ -123,24 +90,7 @@ router.get('/qr/:shortId/download', handleDownloadQRCode);
  *         description: Internal server error
  */
 router.get('/qr/:shortId',          handleGetQRCode);       
-
-/**
- * @swagger
- * /qr/:shortId/colors:
- *   patch:
- *     summary: PATCH request for /qr/:shortId/colors
- *     description: Automatically generated swagger documentation for /qr/:shortId/colors
- *     responses:
- *       200:
- *         description: Successful response
- *       400:
- *         description: Bad request
- *       401:
- *         description: Unauthorized
- *       500:
- *         description: Internal server error
- */
-router.patch('/qr/:shortId/colors', protect, preventContributorWrites, handleUpdateQRColors);
+router.patch('/qr/:shortId/colors', protect, preventContributorWrites, validate(urlQRColorsSchema, 'body'), handleUpdateQRColors);
 
 // ── Analytics Endpoints ─────────────────────────────────────────────────────
 
