@@ -3,6 +3,8 @@ const cookieParser = require("cookie-parser");
 const express = require('express');
 const passport = require("passport");
 const path = require('path');
+const cacheHeadersMiddleware = require('./middleware/cacheHeaders');
+const { getProfileFromCache, setProfileInCache } = require('./utils/profileCache');
 
 // Validate required environment variables
 const requiredEnvVars = [
@@ -36,6 +38,7 @@ require("./workers/analyticsRefreshWorker");
 require("./workers/contentPublishWorker").startContentPublishWorker();
 const { generateCsrf, verifyCsrf } = require('./middleware/csrf');
 
+app.use(cacheHeadersMiddleware);
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json({
@@ -415,6 +418,15 @@ app.post('/bio/track/:linkId', asyncHandler(async (req, res) => {
 app.get('/@:handle', asyncHandler(async (req, res) => {
     const handle = req.params.handle;
 
+    const cachedResult = await getProfileFromCache(handle);
+    if (cachedResult) {
+        res.setCacheStatus('HIT');
+        const { profile, links } = cachedResult.data;
+        return res.render('bio-profile', { profile, links });
+    }
+
+    res.setCacheStatus('MISS');
+
     // Replace with DB lookup when BioProfile model is ready:
     // const bioProfile = await BioProfile.findOne({ handle }).lean();
 
@@ -436,6 +448,9 @@ app.get('/@:handle', asyncHandler(async (req, res) => {
         { id: 5, type: 'portfolio', icon: '🌐', label: 'Portfolio',  url: 'https://portfolio.dev/', category: 'work'   },
         { id: 6, type: 'email',     icon: '📧', label: 'Contact Me', url: 'mailto:hello@example.com', category: 'other' },
     ];
+
+    const cacheData = { profile, links };
+    await setProfileInCache(handle, cacheData);
 
     return res.render('bio-profile', { profile, links });
 }));
