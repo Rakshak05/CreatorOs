@@ -69,7 +69,10 @@ function serializeLink(entry, hostBase) {
  * @returns {Promise<void>|void}
  */
 async function handleGenerateShortUrl(req, res) {
-    const { redirectUrl, title, customSlug, tag } = req.body;
+    // The Zod schema accepts either `redirectUrl` or `url` as an alias;
+    // normalize here so the rest of the function only deals with one field.
+    const { redirectUrl: redirectUrlField, url, title, customSlug, tag } = req.body;
+    const redirectUrl = redirectUrlField || url;
 
     let shortId = shortid();
     if (customSlug) {
@@ -109,10 +112,15 @@ async function handleGenerateShortUrl(req, res) {
             linkedAt: new Date(),
         });
     } catch (err) {
-        if (err.code === 11000) {
+        // TOCTOU: two concurrent requests can both pass the findOne() check
+        // above before either create() resolves. The unique index on
+        // shortId (see model/url.js) is the real guard against duplicates;
+        // this catch turns the resulting MongoDB E11000 error into a clean
+        // 409 instead of an unhandled 500.
+        if (err && err.code === 11000) {
             return res.status(409).json({ error: 'That slug is already taken. Try another.' });
         }
-        return res.status(500).json({ error: 'Failed to create short URL. Please try again.' });
+        throw err;
     }
 
     const hostBase = `${req.protocol}://${req.get('host')}`;
@@ -362,10 +370,6 @@ const handleUpdateQRColors = asyncHandler(async (req, res) => {
         },
         { new: true }
     );
-
-    if (!updated) {
-        return res.status(404).json({ success: false, message: "Short URL not found", error: "Short URL not found" });
-    }
 
     return res.json({
         success: true,
