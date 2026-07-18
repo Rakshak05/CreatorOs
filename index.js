@@ -29,6 +29,11 @@ if (missingVars.length > 0) {
 }
 
 const app = express();
+const urlRoute = require("./routes/url");
+const userRoute = require("./routes/user");
+const analyticsRoute = require("./routes/analytics");
+const collaborationRoute = require("./routes/collaboration");
+const aiRoute = require("./routes/ai");
 const { BRAND } = require('./utils/brand');
 
 const connectDB = require("./connect");
