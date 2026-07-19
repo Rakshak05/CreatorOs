@@ -8,7 +8,5 @@
     "utils/",
     "workers/"
   ],
-  "ext": "js,json,ejs",
-  "delay": 1000,
-  "signal": "SIGTERM"
+  "ext": "js,json,ejs"
 }
