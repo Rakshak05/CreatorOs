@@ -58,6 +58,7 @@ const settingsRoutes = require('./routes/settings');
 const contentRoutes = require('./routes/content');
 const suggestionRoutes = require('./routes/suggestionRoutes');
 
+
 const { generateCsrf, verifyCsrf } = require('./middleware/csrf');
 
 app.use(helmet({
@@ -501,7 +502,12 @@ app.get('/my-links', protect, asyncHandler(async (req, res) => {
         domain: req.get('host'),
     });
 }));
-
+app.get("/inbox", protect, asyncHandler(async (req, res) => {
+    res.render("inbox", {
+        services,
+        user: req.user
+    });
+}));
 // Analytics
 app.get('/analytics', protect, asyncHandler(async (req, res) => {
     return res.redirect('/services/analytics-dashboard');
@@ -540,12 +546,18 @@ app.get('/bio', protect, asyncHandler(async (req, res) => {
 // Save bio data
 app.post('/bio/save', protect, asyncHandler(async (req, res) => {
     const BioProfile = require('./model/bioProfile');
+    const { validateBioProfileInput } = require('./utils/bioProfileValidation');
     const userDoc = await User.findById(req.user.id);
     if (!userDoc) {
         return res.status(404).json({ success: false, message: 'User not found' });
     }
     
-    const { handle, name, bio, tags, avatarUrl, links } = req.body;
+    const validation = validateBioProfileInput(req.body);
+    if (!validation.success) {
+        return res.status(400).json({ success: false, message: validation.message });
+    }
+
+    const { handle, name, bio, tags, avatarUrl, links } = validation.data;
     const userHandle = handle || userDoc.alias;
     
     if (!userHandle) {
@@ -736,6 +748,7 @@ app.get('/services/:serviceKey', protect, asyncHandler(async (req, res) => {
 // ── URL SHORTENER POST ──
 
 const { isValidUrl } = require('./utils/validators');
+const { parseVisitCoordinates } = require('./utils/visitTelemetry');
 
 const { handleGenerateShortUrlRender } = require('./controller/url');
 app.post('/services/url-shortener/shorten', protect, preventContributorWrites, urlShortenerLimiter, handleGenerateShortUrlRender);
@@ -768,14 +781,13 @@ app.post('/services/file-upload/upload', protect, preventContributorWrites, uplo
 
 app.get('/u/:shortId', asyncHandler(async (req, res) => {
     const shortId = req.params.shortId;
-    const x = req.query.x ? parseFloat(req.query.x) : null;
-    const y = req.query.y ? parseFloat(req.query.y) : null;
+    const coordinates = parseVisitCoordinates(req.query);
 
     try {
         const visitData = { timestamp: new Date(), source: 'direct' };
-        if (x !== null && y !== null) {
-            visitData.x = x;
-            visitData.y = y;
+        if (coordinates) {
+            visitData.x = coordinates.x;
+            visitData.y = coordinates.y;
         }
         
         const entry = await Url.findOneAndUpdate(
